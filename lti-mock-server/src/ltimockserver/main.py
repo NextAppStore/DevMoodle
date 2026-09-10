@@ -93,7 +93,7 @@ async def lti_launch(request: Request):
     </head>
     <body>
         <div class="card">
-            <h1>NextAppStore - LTI Christina Launch erfolgreich!</h1>
+            <h1>NextAppStore - LTI Launch erfolgreich!</h1>
             <p>Session-Daten direkt aus Moodle empfangen:</p>
             <table>
                 <tr><th>Benutzername</th><td>{name} ({email})</td></tr>
