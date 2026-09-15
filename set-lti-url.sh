@@ -10,9 +10,29 @@ fi
 TARGET_URL="${1%/}" # Trailing Slash entfernen
 DOMAIN=$(echo "$TARGET_URL" | awk -F[/:] '{print $4}')
 
+# Container-Runtime erkennen (Docker bevorzugt, Podman als Fallback)
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    CONTAINER_ENGINE="docker"
+elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+    CONTAINER_ENGINE="podman"
+else
+    echo "Fehler: Weder Docker noch Podman gefunden bzw. deren Daemon läuft nicht."
+    exit 1
+fi
+
+# Container-Namensschema: podman-compose (Compose v1) nutzt Unterstriche,
+# Docker Compose v2 nutzt Bindestriche.
+if [ "$CONTAINER_ENGINE" = "podman" ]; then
+    DB_CONTAINER="moodle-docker_db_1"
+    WEBSERVER_CONTAINER="moodle-docker_webserver_1"
+else
+    DB_CONTAINER="moodle-docker-db-1"
+    WEBSERVER_CONTAINER="moodle-docker-webserver-1"
+fi
+
 echo "==> Aktualisiere LTI-Tool URL auf: $TARGET_URL (Domain: $DOMAIN)..."
 
-docker exec -i moodle-docker-db-1 psql -U moodle -d moodle >/dev/null <<EOF
+$CONTAINER_ENGINE exec -i "$DB_CONTAINER" psql -U moodle -d moodle >/dev/null <<EOF
 UPDATE m_lti_types 
 SET baseurl = '${TARGET_URL}/api/lti/launch', tooldomain = '${DOMAIN}' 
 WHERE id = 1;
@@ -30,6 +50,6 @@ SET value = '${TARGET_URL}/api/lti/launch'
 WHERE typeid = 1 AND name = 'redirectionuris';
 EOF
 
-docker exec moodle-docker-webserver-1 php admin/cli/purge_caches.php >/dev/null
+$CONTAINER_ENGINE exec "$WEBSERVER_CONTAINER" php admin/cli/purge_caches.php >/dev/null
 
 echo "==> LTI-Tool erfolgreich aktualisiert!"
